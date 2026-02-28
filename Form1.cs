@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Timers;
 using System.Windows.Forms;
 
 namespace EA_Performance_Audit
@@ -10,123 +12,155 @@ namespace EA_Performance_Audit
     public partial class Form1 : Form
     {
         private Process _targetProcess;
-        private TimeSpan _lastTotalProcessorTime;
-        private DateTime _lastSampleTime;
+        private System.Timers.Timer _precisionTimer;
+        private Stopwatch _stopwatch = new Stopwatch();
+        private TimeSpan _lastCpuTime;
+
+        // Logic preserved from test phase
+        private int _burstCounter = 0;
+        private const int BurstThresholdSamples = 3;
+        private const double CpuLimit = 15.0;
+
         private List<string> _logEntries = new List<string>();
         private bool _isExported = false;
 
         public Form1()
         {
             InitializeComponent();
-            this.Text = "PerfAudit v1.0";
-            this.FormBorderStyle = FormBorderStyle.FixedSingle; // Disables resizing
-            this.MaximizeBox = false; // Removes the maximize button
-            this.StartPosition = FormStartPosition.CenterScreen; this.TopMost = true; // Keeps the tool on top of your game/test window
+            SetupFormAesthetics();
+
+            // High-precision 100ms timer
+            _precisionTimer = new System.Timers.Timer(100);
+            _precisionTimer.AutoReset = true;
+            _precisionTimer.Elapsed += OnPrecisionTimerElapsed;
+
             RefreshProcessList();
-            this.FormClosing += (s, e) => SafeExport("Manual App Closure");
         }
 
-        private void btnRefresh_Click(object sender, EventArgs e) => RefreshProcessList();
-
-        private void RefreshProcessList()
+        private void SetupFormAesthetics()
         {
-            comboBoxProcesses.Items.Clear();
-            var procs = Process.GetProcesses().OrderBy(p => p.ProcessName);
-            foreach (var p in procs) comboBoxProcesses.Items.Add($"{p.ProcessName} (PID: {p.Id})");
+            this.Text = "PerfAudit v1.6 - Production";
+            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
+            this.TopMost = chkAlwaysOnTop.Checked; // Preserved for ease of use during gaming
+            this.BackColor = Color.FromArgb(32, 32, 32);
+            lblLiveUsage.ForeColor = Color.LightGreen;
+            lblStatus.ForeColor = Color.White;
         }
+
+        private void chkAlwaysOnTop_CheckedChanged(object sender, EventArgs e) => this.TopMost = chkAlwaysOnTop.Checked;
 
         private void btnToggle_Click(object sender, EventArgs e)
         {
-            if (timer1.Enabled) SafeExport("Manual Stop");
-            else StartMonitoring();
+            if (_precisionTimer.Enabled)
+            {
+                _precisionTimer.Stop();
+                SafeExport("Session Ended");
+                UpdateUIStatus("IDLE", Color.White);
+            }
+            else
+            {
+                StartMonitoring();
+            }
         }
 
         private void StartMonitoring()
         {
             try
             {
+                if (comboBoxProcesses.SelectedItem == null) return;
+
                 string selected = comboBoxProcesses.SelectedItem.ToString();
                 int pid = int.Parse(selected.Split(new[] { "PID: " }, StringSplitOptions.None)[1].Replace(")", ""));
 
                 _targetProcess = Process.GetProcessById(pid);
-                _targetProcess.EnableRaisingEvents = true;
-                _targetProcess.Exited += (s, e) => SafeExport("Target Process Terminated");
+                _targetProcess.Refresh(); // Clear initial OS cache
 
-                _lastTotalProcessorTime = _targetProcess.TotalProcessorTime;
-                _lastSampleTime = DateTime.Now;
+                _lastCpuTime = _targetProcess.TotalProcessorTime;
+                _stopwatch.Restart();
                 _logEntries.Clear();
+                _logEntries.Add("Timestamp,Process,CPU_Usage_Percent,Notes");
+                _burstCounter = 0;
                 _isExported = false;
 
-                timer1.Start();
-                lblStatus.Text = "Status: RECORDING...";
-                lblStatus.ForeColor = System.Drawing.Color.LightGreen; // Set to Green immediately
-                lblLiveUsage.ForeColor = System.Drawing.Color.LightGreen;
-                btnToggle.Text = "Stop & Export";
-                btnToggle.BackColor = System.Drawing.Color.LightCoral;
+                _precisionTimer.Start();
+                UpdateUIStatus("RECORDING...", Color.LightGreen);
             }
-            catch { MessageBox.Show("Please select a process first."); }
+            catch (Exception ex) { MessageBox.Show($"Target Error: {ex.Message}"); }
         }
 
-        private void timer1_Tick(object sender, EventArgs e)
+        private void OnPrecisionTimerElapsed(object sender, ElapsedEventArgs e)
         {
             if (_targetProcess == null || _targetProcess.HasExited) return;
 
-            var currentTotalTime = _targetProcess.TotalProcessorTime;
-            var currentSampleTime = DateTime.Now;
-
-            double cpuUsedMs = (currentTotalTime - _lastTotalProcessorTime).TotalMilliseconds;
-            double totalMsPassed = (currentSampleTime - _lastSampleTime).TotalMilliseconds;
-            double cpuUsage = (cpuUsedMs / (Environment.ProcessorCount * totalMsPassed)) * 100;
-
-            _lastTotalProcessorTime = currentTotalTime;
-            _lastSampleTime = currentSampleTime;
-
-            string line = $"{currentSampleTime:yyyy-MM-dd},{currentSampleTime:HH:mm:ss},{_targetProcess.ProcessName},{Math.Round(cpuUsage, 2)}";
-            _logEntries.Add(line);
-
-            // Live Update and Visual Warning
-            lblLiveUsage.Text = $"CPU: {Math.Round(cpuUsage, 2)}%";
-            if (cpuUsage > 15.0)
+            try
             {
-                lblLiveUsage.ForeColor = System.Drawing.Color.Tomato;
-                lblStatus.Text = "Status: WARNING - HIGH USAGE";
+                // BYPASS CACHE: Critical for catching micro-bursts
+                _targetProcess.Refresh();
+
+                double elapsedMs = _stopwatch.Elapsed.TotalMilliseconds;
+                _stopwatch.Restart();
+
+                TimeSpan currentCpuTime = _targetProcess.TotalProcessorTime;
+                double cpuUsedMs = (currentCpuTime - _lastCpuTime).TotalMilliseconds;
+                _lastCpuTime = currentCpuTime;
+
+                // UNIVERSAL CPU LOGIC: Works on any core count
+                int logicalCores = Environment.ProcessorCount;
+                double cpuUsage = (cpuUsedMs / (logicalCores * elapsedMs)) * 100;
+                if (cpuUsage > 100) cpuUsage = 100;
+
+                string burstFlag = "";
+                if (cpuUsage > CpuLimit)
+                {
+                    _burstCounter++;
+                    // Flag triggers after 300ms of sustained high load
+                    if (_burstCounter >= BurstThresholdSamples) burstFlag = "[BURST DETECTED]";
+                }
+                else { _burstCounter = 0; }
+
+                string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+                _logEntries.Add($"{timestamp},{_targetProcess.ProcessName},{Math.Round(cpuUsage, 2)},{burstFlag}");
+
+                this.BeginInvoke((Action)(() => {
+                    lblLiveUsage.Text = $"CPU: {Math.Round(cpuUsage, 1)}%";
+                    lblLiveUsage.ForeColor = (cpuUsage > CpuLimit) ? Color.Tomato : Color.LightGreen;
+                    if (!string.IsNullOrEmpty(burstFlag)) lblStatus.Text = "Status: BURST ALERT!";
+                }));
             }
-            else
-            {
-                lblLiveUsage.ForeColor = System.Drawing.Color.LightGreen;
-                lblStatus.Text = "Status: RECORDING...";
-            }
+            catch { }
         }
 
         private void SafeExport(string reason)
         {
-            lock (this)
+            if (_isExported || _logEntries.Count <= 1) return;
+            _isExported = true;
+
+            try
             {
-                if (_isExported || _logEntries.Count == 0) return;
-                _isExported = true;
-                timer1.Stop();
-
-                string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"EA_Audit_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
-                File.WriteAllLines(path, new[] { "Date,Time,Process,CPU%" }.Concat(_logEntries));
-
-                if (this.InvokeRequired) this.BeginInvoke((Action)(() => ResetUI(reason)));
-                else ResetUI(reason);
+                string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"Audit_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                File.WriteAllLines(path, _logEntries);
+                this.BeginInvoke((Action)(() => MessageBox.Show($"Log saved to Desktop: {reason}")));
             }
+            catch { }
         }
 
-        private void ResetUI(string msg)
+        private void RefreshProcessList()
         {
-            lblStatus.Text = $"Exported: {msg}";
-            lblStatus.ForeColor = System.Drawing.Color.White; // Reset color
-            lblLiveUsage.Text = "CPU: 0.00%";
-            lblLiveUsage.ForeColor = System.Drawing.Color.White;
-            btnToggle.Text = "Start Monitoring";
-            btnToggle.BackColor = System.Drawing.Color.PaleGreen;
+            comboBoxProcesses.Items.Clear();
+            var allProcesses = Process.GetProcesses().OrderBy(p => p.ProcessName).ToList();
+            foreach (var p in allProcesses) comboBoxProcesses.Items.Add($"{p.ProcessName} (PID: {p.Id})");
         }
 
-        private void textBox1_TextChanged(object sender, EventArgs e)
+        private void UpdateUIStatus(string text, Color color)
         {
-
+            if (this.InvokeRequired) this.Invoke((Action)(() => UpdateUIStatus(text, color)));
+            else
+            {
+                lblStatus.Text = $"Status: {text}";
+                lblStatus.ForeColor = color;
+                btnToggle.Text = (text == "RECORDING...") ? "Stop & Export" : "Start Monitoring";
+            }
         }
     }
 }
