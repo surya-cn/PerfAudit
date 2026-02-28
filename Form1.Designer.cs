@@ -1,11 +1,9 @@
-﻿namespace EA_Performance_Audit
+namespace EA_Performance_Audit
 {
     partial class Form1
     {
-
         private System.ComponentModel.IContainer components = null;
 
-        
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -17,10 +15,6 @@
 
         #region Windows Form Designer generated code
 
-        /// <summary>
-        /// Required method for Designer support - do not modify
-        /// the contents of this method with the code editor.
-        /// </summary>
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
@@ -34,17 +28,13 @@
             this.label1 = new System.Windows.Forms.Label();
             this.chkAlwaysOnTop = new System.Windows.Forms.CheckBox();
             this.SuspendLayout();
-            // 
-            // comboBoxProcesses
-            // 
+
             this.comboBoxProcesses.FormattingEnabled = true;
             this.comboBoxProcesses.Location = new System.Drawing.Point(319, 110);
             this.comboBoxProcesses.Name = "comboBoxProcesses";
             this.comboBoxProcesses.Size = new System.Drawing.Size(331, 24);
             this.comboBoxProcesses.TabIndex = 0;
-            // 
-            // btnToggle
-            // 
+
             this.btnToggle.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnToggle.ForeColor = System.Drawing.Color.Orange;
             this.btnToggle.Location = new System.Drawing.Point(97, 163);
@@ -54,9 +44,7 @@
             this.btnToggle.Text = "Start";
             this.btnToggle.UseVisualStyleBackColor = true;
             this.btnToggle.Click += new System.EventHandler(this.btnToggle_Click);
-            // 
-            // btnRefresh
-            // 
+
             this.btnRefresh.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnRefresh.ForeColor = System.Drawing.Color.Orange;
             this.btnRefresh.Location = new System.Drawing.Point(97, 254);
@@ -65,9 +53,7 @@
             this.btnRefresh.TabIndex = 2;
             this.btnRefresh.Text = "Refresh";
             this.btnRefresh.UseVisualStyleBackColor = true;
-            // 
-            // lblStatus
-            // 
+
             this.lblStatus.AutoSize = true;
             this.lblStatus.BackColor = System.Drawing.Color.Transparent;
             this.lblStatus.ForeColor = System.Drawing.Color.LightGreen;
@@ -76,9 +62,7 @@
             this.lblStatus.Size = new System.Drawing.Size(44, 16);
             this.lblStatus.TabIndex = 3;
             this.lblStatus.Text = "Status";
-            // 
-            // lblLiveUsage
-            // 
+
             this.lblLiveUsage.AutoSize = true;
             this.lblLiveUsage.BackColor = System.Drawing.Color.Transparent;
             this.lblLiveUsage.ForeColor = System.Drawing.Color.LightGreen;
@@ -87,13 +71,9 @@
             this.lblLiveUsage.Size = new System.Drawing.Size(48, 16);
             this.lblLiveUsage.TabIndex = 4;
             this.lblLiveUsage.Text = "Usage";
-            // 
-            // timer1
-            // 
+
             this.timer1.Interval = 1000;
-            // 
-            // label1
-            // 
+
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label1.ForeColor = System.Drawing.Color.Turquoise;
@@ -103,9 +83,7 @@
             this.label1.TabIndex = 5;
             this.label1.Text = "Select Process";
             this.label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // chkAlwaysOnTop
-            // 
+
             this.chkAlwaysOnTop.AutoSize = true;
             this.chkAlwaysOnTop.ForeColor = System.Drawing.Color.Coral;
             this.chkAlwaysOnTop.Location = new System.Drawing.Point(13, 25);
@@ -115,9 +93,7 @@
             this.chkAlwaysOnTop.Text = "Stay on top?";
             this.chkAlwaysOnTop.UseVisualStyleBackColor = true;
             this.chkAlwaysOnTop.CheckedChanged += new System.EventHandler(this.chkAlwaysOnTop_CheckedChanged);
-            // 
-            // Form1
-            // 
+
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(32)))), ((int)(((byte)(32)))), ((int)(((byte)(32)))));
@@ -135,7 +111,6 @@
             this.Text = "PerfAudit";
             this.ResumeLayout(false);
             this.PerformLayout();
-
         }
 
         #endregion
@@ -150,4 +125,3 @@
         private System.Windows.Forms.CheckBox chkAlwaysOnTop;
     }
 }
-
