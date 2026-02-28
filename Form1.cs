@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -39,7 +39,7 @@ namespace EA_Performance_Audit
 
         private void SetupFormAesthetics()
         {
-            this.Text = "PerfAudit v1.6 - Production";
+            this.Text = "PerfAudit v1.6";
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.TopMost = chkAlwaysOnTop.Checked; // Preserved for ease of use during gaming
