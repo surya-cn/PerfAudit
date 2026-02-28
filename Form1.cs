@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -16,7 +16,6 @@ namespace EA_Performance_Audit
         private Stopwatch _stopwatch = new Stopwatch();
         private TimeSpan _lastCpuTime;
 
-        // Logic preserved from test phase
         private int _burstCounter = 0;
         private const int BurstThresholdSamples = 3;
         private const double CpuLimit = 15.0;
@@ -29,7 +28,6 @@ namespace EA_Performance_Audit
             InitializeComponent();
             SetupFormAesthetics();
 
-            // High-precision 100ms timer
             _precisionTimer = new System.Timers.Timer(100);
             _precisionTimer.AutoReset = true;
             _precisionTimer.Elapsed += OnPrecisionTimerElapsed;
@@ -42,7 +40,7 @@ namespace EA_Performance_Audit
             this.Text = "PerfAudit v1.6";
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
-            this.TopMost = chkAlwaysOnTop.Checked; // Preserved for ease of use during gaming
+            this.TopMost = chkAlwaysOnTop.Checked;
             this.BackColor = Color.FromArgb(32, 32, 32);
             lblLiveUsage.ForeColor = Color.LightGreen;
             lblStatus.ForeColor = Color.White;
@@ -74,7 +72,7 @@ namespace EA_Performance_Audit
                 int pid = int.Parse(selected.Split(new[] { "PID: " }, StringSplitOptions.None)[1].Replace(")", ""));
 
                 _targetProcess = Process.GetProcessById(pid);
-                _targetProcess.Refresh(); // Clear initial OS cache
+                _targetProcess.Refresh();
 
                 _lastCpuTime = _targetProcess.TotalProcessorTime;
                 _stopwatch.Restart();
@@ -95,7 +93,6 @@ namespace EA_Performance_Audit
 
             try
             {
-                // BYPASS CACHE: Critical for catching micro-bursts
                 _targetProcess.Refresh();
 
                 double elapsedMs = _stopwatch.Elapsed.TotalMilliseconds;
@@ -105,7 +102,6 @@ namespace EA_Performance_Audit
                 double cpuUsedMs = (currentCpuTime - _lastCpuTime).TotalMilliseconds;
                 _lastCpuTime = currentCpuTime;
 
-                // UNIVERSAL CPU LOGIC: Works on any core count
                 int logicalCores = Environment.ProcessorCount;
                 double cpuUsage = (cpuUsedMs / (logicalCores * elapsedMs)) * 100;
                 if (cpuUsage > 100) cpuUsage = 100;
@@ -114,7 +110,6 @@ namespace EA_Performance_Audit
                 if (cpuUsage > CpuLimit)
                 {
                     _burstCounter++;
-                    // Flag triggers after 300ms of sustained high load
                     if (_burstCounter >= BurstThresholdSamples) burstFlag = "[BURST DETECTED]";
                 }
                 else { _burstCounter = 0; }
