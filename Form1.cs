@@ -49,6 +49,11 @@ namespace PerfAudit
 
         private void chkAlwaysOnTop_CheckedChanged(object sender, EventArgs e) => this.TopMost = chkAlwaysOnTop.Checked;
 
+        private void btnRefresh_Click(object sender, EventArgs e)
+        {
+            RefreshProcessList();
+        }
+
         private void btnToggle_Click(object sender, EventArgs e)
         {
             if (_precisionTimer.Enabled)
@@ -129,7 +134,7 @@ namespace PerfAudit
 
                 string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
 
-                _logEntries.Add($"{timestamp},{_targetProcess.ProcessName},{Math.Round(cpuUsage, 2)},{burstFlag},{_currentThreshold}");
+                _logEntries.Add($"{timestamp},{_targetProcess.ProcessName},{Math.Round(cpuUsage, 2)},{burstFlag},");
 
                 this.BeginInvoke((Action)(() => {
                     lblLiveUsage.Text = $"CPU: {Math.Round(cpuUsage, 1)}%";

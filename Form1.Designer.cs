@@ -59,6 +59,8 @@
             this.btnRefresh.TabIndex = 2;
             this.btnRefresh.Text = "Refresh List";
             this.btnRefresh.UseVisualStyleBackColor = true;
+            // FIXED: Added event handler mapping
+            this.btnRefresh.Click += new System.EventHandler(this.btnRefresh_Click);
 
             this.lblStatus.AutoSize = true;
             this.lblStatus.ForeColor = System.Drawing.Color.White;
