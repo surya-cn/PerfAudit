@@ -1,34 +1,30 @@
-# PerfAudit
-A lightweight, standalone Windows diagnostic tool for high-frequency process monitoring and performance auditing.
+PerfAudit v1.7
+High-Precision CPU Forensic Auditing Tool
 
-## 1. Purpose & Scope
-PerfAudit is designed to monitor the CPU performance of specific target processes during live system testing. It provides high-frequency data logging to identify performance spikes, specifically highlighting instances that exceed a 15% CPU usage threshold.
+PerfAudit is a specialized C# utility designed for software engineers and QA testers to identify transient performance irregularities—"micro-bursts"—that standard monitoring tools like Windows Task Manager are technically incapable of detecting.
 
-Dynamic Monitoring: Select any running process via a real-time updated dropdown.
+🚀 Key Features
+1. High-Resolution 100ms Sampling
+While standard tools poll every 1,000ms, PerfAudit samples every 100ms (10Hz). This allows the capture of spikes that occur between standard polling intervals, providing a true representation of software "hitches" and frame-time stutters.
 
-High-Frequency Logging: Captures performance data every second.
+2. Kernel-Level Data Freshness
+PerfAudit utilizes the .Refresh() method on the target process before every sample. This bypasses the Windows OS performance counter cache, ensuring the data retrieved is the absolute current processor cycle count directly from the kernel.
 
-Automated Export: Data is automatically saved to a CSV file if the target process terminates or the application is closed.
+3. Smart Burst Detection (3-Sample Logic)
+To separate genuine software flaws from background system noise, PerfAudit employs a 3-Sample Streak logic. A [BURST DETECTED] flag is only triggered if the process exceeds the defined threshold for 300ms (3 consecutive samples) or more.
 
-## 2. Security & Elevated Privileges
-Administrative Access: This application requires requireAdministrator privileges via the app.manifest. This is strictly necessary to access the Performance Counters of system-level or kernel-level processes that run under elevated user accounts (e.g., SYSTEM).
+4. Dynamic Decimal Thresholding
+Users can input custom CPU thresholds with decimal precision (e.g., 4.1% to monitor a single thread on a 24-thread CPU like the i7-13700HX).
 
-Binary Integrity: A SHA-256 hash is provided in the release notes to allow users and IT security teams to verify that the .exe binary has not been modified since the build was completed.
+Safety Lock: The threshold input and process selection are automatically locked during active monitoring to ensure audit integrity.
 
-TopMost Execution: The application is configured to stay on top of other windows to allow for continuous monitoring during full-screen testing.
+Smart Defaults: Launches with a 15.0% standard threshold for consistent audit baselines.
 
-## 3. Data Privacy & Handling
-Data Collection: The tool captures only four data points: Process Name, PID, Timestamp, and CPU Usage Percentage.
+📊 Audit Export & Traceability
+Data is exported to a forensic-grade CSV file on the Desktop.
 
-Local Storage: All captured data is stored locally on the user's Desktop in a standard .csv format.
+E1 Metadata Header: The specific threshold used for the test is stored in cell E1 for audit compliance.
 
-No Network Activity: This tool has zero network communication capabilities. It does not "phone home," upload logs to any cloud service, or interact with external APIs.
+Millisecond Timestamps: Every entry includes a high-precision HH:mm:ss.fff timestamp.
 
-Open Transparency: The full source code (Form1.cs, Program.cs, app.manifest) is available for independent security auditing to ensure compliance with corporate security standards.
-
-## 4. Troubleshooting
-Missing CPU Data: If CPU usage shows 0% for system processes, ensure the app was launched with "Run as Administrator".
-
-UAC/SmartScreen Warnings: Due to the embedded manifest, Windows may flag the file as "Unknown." Click More Info > Run Anyway to proceed.
-
-CSV Not Appearing: Verify the application has permission to write to the current user's Desktop folder.
+Excel-Ready: The 5-column structure is optimized for immediate charting and "Goal-Line" analysis in Excel.
