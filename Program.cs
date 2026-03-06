@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace EA_Performance_Audit
+namespace PerfAudit
 {
     internal static class Program
     {

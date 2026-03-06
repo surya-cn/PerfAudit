@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -7,7 +7,7 @@ using System.Linq;
 using System.Timers;
 using System.Windows.Forms;
 
-namespace EA_Performance_Audit
+namespace PerfAudit
 {
     public partial class Form1 : Form
     {
@@ -18,7 +18,7 @@ namespace EA_Performance_Audit
 
         private int _burstCounter = 0;
         private const int BurstThresholdSamples = 3;
-        private const double CpuLimit = 15.0;
+        private double _currentThreshold = 15.0;
 
         private List<string> _logEntries = new List<string>();
         private bool _isExported = false;
@@ -33,11 +33,12 @@ namespace EA_Performance_Audit
             _precisionTimer.Elapsed += OnPrecisionTimerElapsed;
 
             RefreshProcessList();
+            txtThreshold.Text = "15.0";
         }
 
         private void SetupFormAesthetics()
         {
-            this.Text = "PerfAudit v1.6";
+            this.Text = "PerfAudit v1.7";
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.TopMost = chkAlwaysOnTop.Checked;
@@ -53,11 +54,19 @@ namespace EA_Performance_Audit
             if (_precisionTimer.Enabled)
             {
                 _precisionTimer.Stop();
+                txtThreshold.Enabled = true;
+                comboBoxProcesses.Enabled = true;
                 SafeExport("Session Ended");
                 UpdateUIStatus("IDLE", Color.White);
             }
             else
             {
+                if (!double.TryParse(txtThreshold.Text, out _currentThreshold))
+                {
+                    MessageBox.Show("Invalid Threshold. Resetting to 15.0%", "Input Error");
+                    _currentThreshold = 15.0;
+                    txtThreshold.Text = "15.0";
+                }
                 StartMonitoring();
             }
         }
@@ -77,12 +86,16 @@ namespace EA_Performance_Audit
                 _lastCpuTime = _targetProcess.TotalProcessorTime;
                 _stopwatch.Restart();
                 _logEntries.Clear();
-                _logEntries.Add("Timestamp,Process,CPU_Usage_Percent,Notes");
+
+                _logEntries.Add($"Timestamp,Process,CPU_Usage_Percent,Notes,Threshold_Used:{_currentThreshold}%");
+
                 _burstCounter = 0;
                 _isExported = false;
 
+                txtThreshold.Enabled = false;
+                comboBoxProcesses.Enabled = false;
                 _precisionTimer.Start();
-                UpdateUIStatus("RECORDING...", Color.LightGreen);
+                UpdateUIStatus($"RECORDING ({_currentThreshold}%)...", Color.LightGreen);
             }
             catch (Exception ex) { MessageBox.Show($"Target Error: {ex.Message}"); }
         }
@@ -107,7 +120,7 @@ namespace EA_Performance_Audit
                 if (cpuUsage > 100) cpuUsage = 100;
 
                 string burstFlag = "";
-                if (cpuUsage > CpuLimit)
+                if (cpuUsage > _currentThreshold)
                 {
                     _burstCounter++;
                     if (_burstCounter >= BurstThresholdSamples) burstFlag = "[BURST DETECTED]";
@@ -115,11 +128,12 @@ namespace EA_Performance_Audit
                 else { _burstCounter = 0; }
 
                 string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
-                _logEntries.Add($"{timestamp},{_targetProcess.ProcessName},{Math.Round(cpuUsage, 2)},{burstFlag}");
+
+                _logEntries.Add($"{timestamp},{_targetProcess.ProcessName},{Math.Round(cpuUsage, 2)},{burstFlag},{_currentThreshold}");
 
                 this.BeginInvoke((Action)(() => {
                     lblLiveUsage.Text = $"CPU: {Math.Round(cpuUsage, 1)}%";
-                    lblLiveUsage.ForeColor = (cpuUsage > CpuLimit) ? Color.Tomato : Color.LightGreen;
+                    lblLiveUsage.ForeColor = (cpuUsage > _currentThreshold) ? Color.Tomato : Color.LightGreen;
                     if (!string.IsNullOrEmpty(burstFlag)) lblStatus.Text = "Status: BURST ALERT!";
                 }));
             }
@@ -135,7 +149,7 @@ namespace EA_Performance_Audit
             {
                 string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"Audit_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 File.WriteAllLines(path, _logEntries);
-                this.BeginInvoke((Action)(() => MessageBox.Show($"Log saved to Desktop: {reason}")));
+                this.BeginInvoke((Action)(() => MessageBox.Show($"Log saved to Desktop.\nThreshold used: {_currentThreshold}%")));
             }
             catch { }
         }
@@ -154,7 +168,7 @@ namespace EA_Performance_Audit
             {
                 lblStatus.Text = $"Status: {text}";
                 lblStatus.ForeColor = color;
-                btnToggle.Text = (text == "RECORDING...") ? "Stop & Export" : "Start Monitoring";
+                btnToggle.Text = (text.StartsWith("RECORDING")) ? "Stop & Export" : "Start Monitoring";
             }
         }
     }
