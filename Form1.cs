@@ -92,7 +92,7 @@ namespace PerfAudit
                 _stopwatch.Restart();
                 _logEntries.Clear();
 
-                _logEntries.Add($"Timestamp,Process,CPU_Usage_Percent,Notes,Threshold_Used:{_currentThreshold}%");
+                _logEntries.Add($"Timestamp,Process,CPU_Usage_Percent,Notes,Threshold_Used:{_currentThreshold}%,,\"=\"\"TOTAL BURSTS: \"\" & COUNTIF(D:D,\"\"BURST DETECTED\"\")\",,\"=\"\"AVG CPU: \"\" & ROUND(AVERAGE(C:C),2) & \"\"%\"\"\"");
 
                 _burstCounter = 0;
                 _isExported = false;
@@ -150,7 +150,7 @@ namespace PerfAudit
 
                 string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
 
-                _logEntries.Add($"{timestamp},{_targetProcess.ProcessName},{Math.Round(cpuUsage, 2)},{burstFlag},");
+                _logEntries.Add($"' {timestamp},{_targetProcess.ProcessName},{Math.Round(cpuUsage, 2)},{burstFlag},");
 
                 this.BeginInvoke((Action)(() => {
                     lblLiveUsage.Text = $"CPU: {Math.Round(cpuUsage, 1)}%";
