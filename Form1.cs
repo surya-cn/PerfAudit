@@ -107,12 +107,22 @@ namespace PerfAudit
 
         private void OnPrecisionTimerElapsed(object sender, ElapsedEventArgs e)
         {
-            if (_targetProcess == null || _targetProcess.HasExited) return;
+            if (_targetProcess == null || _targetProcess.HasExited)
+            {
+                _precisionTimer.Stop();
+                SafeExport("Process Terminated");
+
+                this.BeginInvoke((Action)(() => {
+                    UpdateUIStatus("IDLE (Target Exited)", Color.Orange);
+                    txtThreshold.Enabled = true;
+                    comboBoxProcesses.Enabled = true;
+                }));
+                return;
+            }
 
             try
             {
                 _targetProcess.Refresh();
-
                 double elapsedMs = _stopwatch.Elapsed.TotalMilliseconds;
                 _stopwatch.Restart();
 
@@ -128,9 +138,15 @@ namespace PerfAudit
                 if (cpuUsage > _currentThreshold)
                 {
                     _burstCounter++;
-                    if (_burstCounter >= BurstThresholdSamples) burstFlag = "[BURST DETECTED]";
+                    if (_burstCounter >= BurstThresholdSamples)
+                    {
+                        burstFlag = "BURST DETECTED";
+                    }
                 }
-                else { _burstCounter = 0; }
+                else
+                {
+                    _burstCounter = 0;
+                }
 
                 string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
 
@@ -152,6 +168,11 @@ namespace PerfAudit
 
             try
             {
+                _logEntries.Add(",,,,");
+
+                _logEntries.Add($",,,TOTAL BURSTS DETECTED:,\"=COUNTIF(D:D,\"\"BURST DETECTED\"\")\"");
+                _logEntries.Add($",,,AVERAGE SESSION CPU:,=AVERAGE(C:C)");
+
                 string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"Audit_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 File.WriteAllLines(path, _logEntries);
                 this.BeginInvoke((Action)(() => MessageBox.Show($"Log saved to Desktop.\nThreshold used: {_currentThreshold}%")));
