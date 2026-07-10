@@ -1,4 +1,4 @@
-PerfAudit v1.7
+PerfAudit v1.8
 High-Precision CPU Forensic Auditing Tool
 
 PerfAudit is a specialized C# utility designed for software engineers and QA testers to identify transient performance irregularities—"micro-bursts"—that standard monitoring tools like Windows Task Manager are technically incapable of detecting.
