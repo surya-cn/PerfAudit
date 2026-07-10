@@ -42,7 +42,7 @@ namespace PerfAudit
 
         private void SetupFormAesthetics()
         {
-            this.Text = "PerfAudit v1.7";
+            this.Text = "PerfAudit v1.8";
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.TopMost = chkAlwaysOnTop.Checked;
