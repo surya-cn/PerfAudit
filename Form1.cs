@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -16,9 +16,13 @@ namespace PerfAudit
         private Stopwatch _stopwatch = new Stopwatch();
         private TimeSpan _lastCpuTime;
 
-        private int _burstCounter = 0;
-        private const int BurstThresholdSamples = 3;
+        private double _accumulatedBurstMs = 0;
+        private const double BurstThresholdMs = 300;
         private double _currentThreshold = 15.0;
+
+        private int _totalBurstCount = 0;
+        private double _totalCpuSum = 0;
+        private int _sampleCount = 0;
 
         private List<string> _logEntries = new List<string>();
         private bool _isExported = false;
@@ -45,6 +49,11 @@ namespace PerfAudit
             this.BackColor = Color.FromArgb(32, 32, 32);
             lblLiveUsage.ForeColor = Color.LightGreen;
             lblStatus.ForeColor = Color.White;
+
+            // Note: TopMost = true will not render above exclusive fullscreen applications 
+            // (e.g. DirectX/DXGI) because they bypass the window manager's z-order.
+            ToolTip tooltip = new ToolTip();
+            tooltip.SetToolTip(chkAlwaysOnTop, "If UI is not visible, target may be running exclusive fullscreen — monitoring continues in background.");
         }
 
         private void chkAlwaysOnTop_CheckedChanged(object sender, EventArgs e) => this.TopMost = chkAlwaysOnTop.Checked;
@@ -92,15 +101,19 @@ namespace PerfAudit
                 _stopwatch.Restart();
                 _logEntries.Clear();
 
-                _logEntries.Add($"Timestamp,Process,CPU_Usage_Percent,Notes,Threshold_Used:{_currentThreshold}%,,\"=\"\"TOTAL BURSTS: \"\" & COUNTIF(D:D,\"\"BURST DETECTED\"\")\",,\"=\"\"AVG CPU: \"\" & ROUND(AVERAGE(C:C),2) & \"\"%\"\"\"");
+                _totalBurstCount = 0;
+                _totalCpuSum = 0;
+                _sampleCount = 0;
 
-                _burstCounter = 0;
+                _logEntries.Add($"Timestamp,Process,CPU_Usage_Percent,Notes,Threshold_Used:{_currentThreshold}%");
+
+                _accumulatedBurstMs = 0;
                 _isExported = false;
 
                 txtThreshold.Enabled = false;
                 comboBoxProcesses.Enabled = false;
                 _precisionTimer.Start();
-                UpdateUIStatus($"RECORDING ({_currentThreshold}%)...", Color.LightGreen);
+                UpdateUIStatus($"RECORDING ({_currentThreshold}%) - If hidden, target may be in exclusive fullscreen", Color.LightGreen);
             }
             catch (Exception ex) { MessageBox.Show($"Target Error: {ex.Message}"); }
         }
@@ -137,16 +150,20 @@ namespace PerfAudit
                 string burstFlag = "";
                 if (cpuUsage > _currentThreshold)
                 {
-                    _burstCounter++;
-                    if (_burstCounter >= BurstThresholdSamples)
+                    _accumulatedBurstMs += elapsedMs;
+                    if (_accumulatedBurstMs >= BurstThresholdMs)
                     {
                         burstFlag = "BURST DETECTED";
+                        _totalBurstCount++;
                     }
                 }
                 else
                 {
-                    _burstCounter = 0;
+                    _accumulatedBurstMs = 0;
                 }
+
+                _totalCpuSum += cpuUsage;
+                _sampleCount++;
 
                 string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
 
@@ -168,10 +185,13 @@ namespace PerfAudit
 
             try
             {
+                double avgCpu = _sampleCount > 0 ? _totalCpuSum / _sampleCount : 0;
+                _logEntries[0] = $"Timestamp,Process,CPU_Usage_Percent,Notes,Threshold_Used:{_currentThreshold}%,,TOTAL BURST SAMPLES: {_totalBurstCount},,AVG CPU: {Math.Round(avgCpu, 2)}%";
+
                 _logEntries.Add(",,,,");
 
-                _logEntries.Add($",,,TOTAL BURSTS DETECTED:,\"=COUNTIF(D:D,\"\"BURST DETECTED\"\")\"");
-                _logEntries.Add($",,,AVERAGE SESSION CPU:,=AVERAGE(C:C)");
+                _logEntries.Add($",,,TOTAL BURST SAMPLES:,{_totalBurstCount}");
+                _logEntries.Add($",,,AVERAGE SESSION CPU:,{Math.Round(avgCpu, 2)}%");
 
                 string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"Audit_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 File.WriteAllLines(path, _logEntries);
