@@ -195,7 +195,7 @@ namespace PerfAudit
 
                 string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"Audit_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 File.WriteAllLines(path, _logEntries);
-                this.BeginInvoke((Action)(() => MessageBox.Show($"Log saved to Desktop.\nThreshold used: {_currentThreshold}%")));
+                this.BeginInvoke((Action)(() => MessageBox.Show($"Log saved to Desktop.\nThreshold used: {_currentThreshold}%\nTotal Burst Samples: {_totalBurstCount}\nAverage CPU: {Math.Round(avgCpu, 2)}%")));
             }
             catch { }
         }
