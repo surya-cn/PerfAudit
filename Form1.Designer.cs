@@ -23,7 +23,10 @@ namespace PerfAudit
             this.btnRefresh = new System.Windows.Forms.Button();
             this.lblStatus = new System.Windows.Forms.Label();
             this.lblLiveUsage = new System.Windows.Forms.Label();
+            this.lblLiveFps = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
+            this.labelGame = new System.Windows.Forms.Label();
+            this.comboBoxGame = new System.Windows.Forms.ComboBox();
             this.chkAlwaysOnTop = new System.Windows.Forms.CheckBox();
             this.txtThreshold = new System.Windows.Forms.TextBox();
             this.label2 = new System.Windows.Forms.Label();
@@ -35,9 +38,9 @@ namespace PerfAudit
             this.comboBoxProcesses.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.comboBoxProcesses.ForeColor = System.Drawing.Color.White;
             this.comboBoxProcesses.FormattingEnabled = true;
-            this.comboBoxProcesses.Location = new System.Drawing.Point(319, 110);
+            this.comboBoxProcesses.Location = new System.Drawing.Point(319, 65);
             this.comboBoxProcesses.Name = "comboBoxProcesses";
-            this.comboBoxProcesses.Size = new System.Drawing.Size(331, 24);
+            this.comboBoxProcesses.Size = new System.Drawing.Size(350, 24);
             this.comboBoxProcesses.TabIndex = 0;
 
             this.btnToggle.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -63,7 +66,7 @@ namespace PerfAudit
 
             this.lblStatus.AutoSize = true;
             this.lblStatus.ForeColor = System.Drawing.Color.White;
-            this.lblStatus.Location = new System.Drawing.Point(94, 387);
+            this.lblStatus.Location = new System.Drawing.Point(20, 418);
             this.lblStatus.Name = "lblStatus";
             this.lblStatus.Size = new System.Drawing.Size(79, 16);
             this.lblStatus.TabIndex = 3;
@@ -72,20 +75,48 @@ namespace PerfAudit
             this.lblLiveUsage.AutoSize = true;
             this.lblLiveUsage.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold);
             this.lblLiveUsage.ForeColor = System.Drawing.Color.LightGreen;
-            this.lblLiveUsage.Location = new System.Drawing.Point(600, 380);
+            this.lblLiveUsage.Location = new System.Drawing.Point(340, 380);
             this.lblLiveUsage.Name = "lblLiveUsage";
             this.lblLiveUsage.Size = new System.Drawing.Size(131, 32);
             this.lblLiveUsage.TabIndex = 4;
             this.lblLiveUsage.Text = "CPU: 0.0%";
 
+            this.lblLiveFps.AutoSize = true;
+            this.lblLiveFps.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold);
+            this.lblLiveFps.ForeColor = System.Drawing.Color.Turquoise;
+            this.lblLiveFps.Location = new System.Drawing.Point(540, 380);
+            this.lblLiveFps.Name = "lblLiveFps";
+            this.lblLiveFps.Size = new System.Drawing.Size(85, 32);
+            this.lblLiveFps.TabIndex = 11;
+            this.lblLiveFps.Text = "FPS: 0";
+
             this.label1.AutoSize = true;
-            this.label1.Font = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold);
+            this.label1.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
             this.label1.ForeColor = System.Drawing.Color.Turquoise;
-            this.label1.Location = new System.Drawing.Point(375, 51);
+            this.label1.Location = new System.Drawing.Point(315, 30);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(214, 41);
+            this.label1.Size = new System.Drawing.Size(202, 28);
             this.label1.TabIndex = 5;
-            this.label1.Text = "Select Process";
+            this.label1.Text = "Select Process (CPU)";
+
+            this.labelGame.AutoSize = true;
+            this.labelGame.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
+            this.labelGame.ForeColor = System.Drawing.Color.Turquoise;
+            this.labelGame.Location = new System.Drawing.Point(315, 115);
+            this.labelGame.Name = "labelGame";
+            this.labelGame.Size = new System.Drawing.Size(178, 28);
+            this.labelGame.TabIndex = 9;
+            this.labelGame.Text = "Select Game (FPS)";
+
+            this.comboBoxGame.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(48)))));
+            this.comboBoxGame.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBoxGame.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.comboBoxGame.ForeColor = System.Drawing.Color.White;
+            this.comboBoxGame.FormattingEnabled = true;
+            this.comboBoxGame.Location = new System.Drawing.Point(319, 150);
+            this.comboBoxGame.Name = "comboBoxGame";
+            this.comboBoxGame.Size = new System.Drawing.Size(350, 24);
+            this.comboBoxGame.TabIndex = 10;
 
             this.chkAlwaysOnTop.AutoSize = true;
             this.chkAlwaysOnTop.ForeColor = System.Drawing.Color.Coral;
@@ -132,16 +163,20 @@ namespace PerfAudit
             this.Controls.Add(this.txtThreshold);
             this.Controls.Add(this.chkAlwaysOnTop);
             this.Controls.Add(this.label1);
+            this.Controls.Add(this.comboBoxProcesses);
+            this.Controls.Add(this.labelGame);
+            this.Controls.Add(this.comboBoxGame);
+            this.Controls.Add(this.lblLiveFps);
             this.Controls.Add(this.lblLiveUsage);
             this.Controls.Add(this.lblStatus);
             this.Controls.Add(this.btnRefresh);
             this.Controls.Add(this.btnToggle);
-            this.Controls.Add(this.comboBoxProcesses);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
             this.Name = "Form1";
-            this.Text = "PerfAudit v1.7";
+            this.Text = "PerfAudit v1.9";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
             this.ResumeLayout(false);
             this.PerformLayout();
         }
@@ -153,7 +188,10 @@ namespace PerfAudit
         private System.Windows.Forms.Button btnRefresh;
         private System.Windows.Forms.Label lblStatus;
         private System.Windows.Forms.Label lblLiveUsage;
+        private System.Windows.Forms.Label lblLiveFps;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label labelGame;
+        private System.Windows.Forms.ComboBox comboBoxGame;
         private System.Windows.Forms.CheckBox chkAlwaysOnTop;
         private System.Windows.Forms.TextBox txtThreshold;
         private System.Windows.Forms.Label label2;
