@@ -53,7 +53,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationIcon>Gemini_Generated_Image_t8vjq5t8vjq5t8vj-removebg-preview.ico</ApplicationIcon>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup>
     <ManifestCertificateThumbprint>E7CF241AAAE3EE2DA875F604B3AF023990A406F7</ManifestCertificateThumbprint>
@@ -131,7 +131,7 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Gemini_Generated_Image_t8vjq5t8vjq5t8vj-removebg-preview.ico" />
+    <Content Include="icon.ico" />
     <Content Include="$(NuGetPackageRoot)microsoft.diagnostics.tracing.traceevent\3.1.8\build\native\**\*.*">
       <Link>%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
