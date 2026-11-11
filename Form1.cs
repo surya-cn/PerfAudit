@@ -399,7 +399,7 @@ namespace PerfAudit
 
             string outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"PerfAudit_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
             string cpuFile = _tempCpuFile;
-            string fpsFile = _fpsLogger?.TempFilePath;
+            List<FpsFrame> fpsFrames = _fpsLogger?.Frames;
             double threshold = _currentThreshold;
             int totalBursts = _totalBurstCount;
             double avgCpu = _sampleCount > 0 ? _totalCpuSum / _sampleCount : 0;
@@ -408,7 +408,6 @@ namespace PerfAudit
             int totalFrames = _fpsLogger?.TotalFramesRecorded ?? 0;
             bool cpuLogged = _cpuLogged;
             bool fpsLogged = _fpsLogged;
-            DateTime runDate = DateTime.Now;
 
             List<CpuSample> cpuSamples = null;
             lock (_cpuLock)
@@ -429,9 +428,8 @@ namespace PerfAudit
                         threshold,
                         totalBursts,
                         avgCpu,
-                        fpsLogged ? fpsFile : null,
-                        gameName,
-                        runDate);
+                        fpsLogged ? fpsFrames : null,
+                        gameName);
 
                     this.BeginInvoke((Action)(() =>
                     {
@@ -474,7 +472,6 @@ namespace PerfAudit
                 finally
                 {
                     try { if (!string.IsNullOrEmpty(cpuFile) && File.Exists(cpuFile)) File.Delete(cpuFile); } catch { }
-                    try { if (!string.IsNullOrEmpty(fpsFile) && File.Exists(fpsFile)) File.Delete(fpsFile); } catch { }
 
                     if (_fpsLogger != null)
                     {

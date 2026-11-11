@@ -2,9 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Diagnostics.Tracing;
@@ -16,6 +14,13 @@ namespace PerfAudit
     {
         public long TimestampQpc;
         public DateTime WallClock;
+    }
+
+    public struct FpsFrame
+    {
+        public DateTime WallClock;
+        public double TimeS;
+        public double FrametimeMs;
     }
 
     public class FpsLogger : IDisposable
@@ -32,7 +37,7 @@ namespace PerfAudit
         private int _targetPid;
         private string _processName;
         private long _startQpc;
-        private string _tempFilePath;
+        private readonly List<FpsFrame> _frames = new List<FpsFrame>();
 
         private Process _gameProcess;
         private System.Timers.Timer _heartbeatTimer;
@@ -40,7 +45,7 @@ namespace PerfAudit
         private long _lastFrameTicks;
 
         public bool IsRunning { get; private set; }
-        public string TempFilePath => _tempFilePath;
+        public List<FpsFrame> Frames => _frames;
         public string ProcessName => _processName;
         public int TotalFramesRecorded { get; private set; }
 
@@ -97,7 +102,7 @@ namespace PerfAudit
 
                 CleanupLeftoverSession();
 
-                _tempFilePath = Path.GetTempFileName();
+                _frames.Clear();
                 _sampleQueue = new BlockingCollection<FrameSample>(20000);
                 _cts = new CancellationTokenSource();
                 TotalFramesRecorded = 0;
@@ -110,10 +115,8 @@ namespace PerfAudit
                 _session = new TraceEventSession(SessionName);
                 _session.StopOnDispose = true;
 
-                // Enable DXGI provider with all keywords at Verbose level
                 _session.EnableProvider(DxgiGuid, TraceEventLevel.Verbose, ulong.MaxValue);
 
-                // Subscribe to raw stream (Source.AllEvents)
                 _session.Source.AllEvents += OnTraceEvent;
 
                 _processingTask = Task.Factory.StartNew(() =>
@@ -132,7 +135,7 @@ namespace PerfAudit
                     }
                 }, TaskCreationOptions.LongRunning);
 
-                _writerTask = Task.Factory.StartNew(DrainQueueToTempFile, TaskCreationOptions.LongRunning);
+                _writerTask = Task.Factory.StartNew(CollectSamples, TaskCreationOptions.LongRunning);
 
                 _latestFps = 0;
                 _lastFrameTicks = Environment.TickCount;
@@ -189,7 +192,6 @@ namespace PerfAudit
 
                 int eventId = (int)data.ID;
 
-                // Authoritative DXGI Present events: 42 (Present_Start) and 55 (PresentMultiplaneOverlay_Start)
                 if (data.ProviderGuid == DxgiGuid && (eventId == 42 || eventId == 55))
                 {
                     Interlocked.Increment(ref EnqueuedPresentsCount);
@@ -204,50 +206,39 @@ namespace PerfAudit
             }
         }
 
-        private void DrainQueueToTempFile()
+        private void CollectSamples()
         {
             try
             {
-                using (var stream = new FileStream(_tempFilePath, FileMode.Create, FileAccess.Write, FileShare.Read, 65536))
-                using (var writer = new StreamWriter(stream, Encoding.UTF8))
+                long lastQpc = 0;
+                long frequency = Stopwatch.Frequency;
+                var window = new Queue<double>();
+
+                foreach (var sample in _sampleQueue.GetConsumingEnumerable())
                 {
-                    writer.WriteLine("Timestamp,Process,time_s,frametime_ms,fps_1s");
+                    long currentQpc = sample.TimestampQpc;
+                    double timeS = (double)(currentQpc - _startQpc) / frequency;
+                    if (timeS < 0) timeS = 0;
 
-                    long lastQpc = 0;
-                    long frequency = Stopwatch.Frequency;
-                    var window = new Queue<double>();
-                    long lastFlushTicks = Environment.TickCount;
+                    double frameTimeMs = lastQpc == 0 ? 0.0 : (double)(currentQpc - lastQpc) * 1000.0 / frequency;
+                    lastQpc = currentQpc;
 
-                    foreach (var sample in _sampleQueue.GetConsumingEnumerable())
+                    window.Enqueue(timeS);
+                    while (window.Count > 0 && window.Peek() < timeS - 1.0)
                     {
-                        long currentQpc = sample.TimestampQpc;
-                        double timeS = (double)(currentQpc - _startQpc) / frequency;
-                        if (timeS < 0) timeS = 0;
-
-                        double frameTimeMs = lastQpc == 0 ? 0.0 : (double)(currentQpc - lastQpc) * 1000.0 / frequency;
-                        lastQpc = currentQpc;
-
-                        window.Enqueue(timeS);
-                        while (window.Count > 0 && window.Peek() < timeS - 1.0)
-                        {
-                            window.Dequeue();
-                        }
-                        int fps1s = window.Count;
-                        _latestFps = fps1s;
-                        _lastFrameTicks = Environment.TickCount;
-                        TotalFramesRecorded++;
-
-                        writer.WriteLine($"{sample.WallClock:HH:mm:ss.fff},{_processName},{timeS:F3},{frameTimeMs:F3},{fps1s}");
-
-                        long now = Environment.TickCount;
-                        if (now - lastFlushTicks >= 1000)
-                        {
-                            writer.Flush();
-                            lastFlushTicks = now;
-                        }
+                        window.Dequeue();
                     }
+                    int fps1s = window.Count;
+                    _latestFps = fps1s;
+                    _lastFrameTicks = Environment.TickCount;
+                    TotalFramesRecorded++;
 
-                    writer.Flush();
+                    _frames.Add(new FpsFrame
+                    {
+                        WallClock = sample.WallClock,
+                        TimeS = timeS,
+                        FrametimeMs = frameTimeMs
+                    });
                 }
             }
             catch { }
