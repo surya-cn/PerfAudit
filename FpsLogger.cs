@@ -50,9 +50,7 @@ namespace PerfAudit
         public string ProcessName => _processName;
         public int TotalFramesRecorded { get; private set; }
 
-        public long EnqueuedPresentsCount;
         public string EtwThreadException { get; private set; }
-        public int ResolvedTargetPid => _targetPid;
 
         public event Action<int> FpsUpdated;
         public event Action<string> ErrorOccurred;
@@ -103,7 +101,6 @@ namespace PerfAudit
                 _sampleQueue = new BlockingCollection<FrameSample>(20000);
                 _cts = new CancellationTokenSource();
                 TotalFramesRecorded = 0;
-                EnqueuedPresentsCount = 0;
                 EtwThreadException = null;
                 _stopped = 0;
 
@@ -184,14 +181,11 @@ namespace PerfAudit
                     if (_sampleQueue != null && !_sampleQueue.IsAddingCompleted)
                     {
 #pragma warning disable 618
-                        if (_sampleQueue.TryAdd(new FrameSample
+                        _sampleQueue.TryAdd(new FrameSample
                         {
                             TimestampQpc = data.TimeStampQPC,
                             WallClock = data.TimeStamp
-                        }))
-                        {
-                            Interlocked.Increment(ref EnqueuedPresentsCount);
-                        }
+                        });
 #pragma warning restore 618
                     }
                 }

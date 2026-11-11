@@ -510,6 +510,17 @@ namespace PerfAudit
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
+            if (_isExporting)
+            {
+                MessageBox.Show(
+                    "A report is still being saved. Please wait a moment and close again.",
+                    "PerfAudit",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                e.Cancel = true;
+                return;
+            }
+
             if (_cpuActive || _fpsActive)
             {
                 var result = MessageBox.Show(
