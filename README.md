@@ -28,10 +28,10 @@ Session data is automatically packaged into a single Excel workbook (`.xlsx`) on
 ## Requirements
 - Operating System: Windows 10 / 11 (x64)
 - Runtime: .NET Framework 4.8
-- Privileges: Administrator rights (the user must launch PerfAudit as administrator for ETW session creation during FPS logging; app.manifest is unchanged)
+- Privileges: Administrator rights (PerfAudit requests administrator rights at startup (UAC prompt), and FPS logging needs them)
 
 ## How to Use
-1. Launch PerfAudit as Administrator.
+1. Launch PerfAudit (approve the UAC prompt).
 2. Select a target process from "Select Process (CPU)" (e.g., a background service) or choose "None".
 3. Select a target game from "Select Game (FPS)" (e.g., `game.exe`) or choose "None".
 4. Adjust the CPU threshold percentage if CPU monitoring is enabled (defaults to 15.0%).

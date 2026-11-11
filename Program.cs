@@ -1,17 +1,13 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Linq;
 using System.Security.Principal;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace PerfAudit
 {
     internal static class Program
     {
-
         [STAThread]
         static void Main()
         {
@@ -31,9 +27,8 @@ namespace PerfAudit
                 }
                 catch (Win32Exception)
                 {
-                    // User canceled the UAC prompt
                 }
-                return; // Exit the current non-elevated instance
+                return;
             }
 
             Application.EnableVisualStyles();

@@ -14,6 +14,7 @@ namespace PerfAudit
     public partial class Form1 : Form
     {
         private Process _targetProcess;
+        private string _cachedCpuProcessName;
         private System.Timers.Timer _precisionTimer;
         private Stopwatch _stopwatch = new Stopwatch();
         private TimeSpan _lastCpuTime;
@@ -37,7 +38,7 @@ namespace PerfAudit
         private bool _fpsActive = false;
         private bool _cpuLogged = false;
         private bool _fpsLogged = false;
-        private bool _isExporting = false;
+        private volatile bool _isExporting = false;
         private ComboBoxTypeAhead _cpuTypeAhead;
         private ComboBoxTypeAhead _gameTypeAhead;
 
@@ -69,8 +70,6 @@ namespace PerfAudit
             lblLiveFps.ForeColor = Color.Turquoise;
             lblStatus.ForeColor = Color.White;
 
-            // Note: TopMost = true will not render above exclusive fullscreen applications 
-            // (e.g. DirectX/DXGI) because they bypass the window manager's z-order.
             ToolTip tooltip = new ToolTip();
             tooltip.SetToolTip(chkAlwaysOnTop, "If UI is not visible, target may be running exclusive fullscreen — monitoring continues in background.");
         }
@@ -136,6 +135,7 @@ namespace PerfAudit
                     cpuPid = int.Parse(selected.Split(new[] { "PID: " }, StringSplitOptions.None)[1].Replace(")", ""));
                     _targetProcess = Process.GetProcessById(cpuPid);
                     _targetProcess.Refresh();
+                    _cachedCpuProcessName = _targetProcess.ProcessName;
                 }
                 catch (Exception ex)
                 {
@@ -146,6 +146,7 @@ namespace PerfAudit
             else
             {
                 _targetProcess = null;
+                _cachedCpuProcessName = null;
             }
 
             long startQpc = Stopwatch.GetTimestamp();
@@ -196,27 +197,14 @@ namespace PerfAudit
                         lblLiveFps.Text = $"FPS: {fps}";
                     }));
                 };
-                _fpsLogger.DiagnosticsUpdated += (diag) =>
+                _fpsLogger.ErrorOccurred += (err) =>
                 {
                     this.BeginInvoke((Action)(() =>
                     {
                         if (_fpsActive)
                         {
-                            if (!string.IsNullOrEmpty(_fpsLogger?.EtwThreadException))
-                            {
-                                lblStatus.Text = $"Status: {_fpsLogger.EtwThreadException.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()}";
-                                lblStatus.ForeColor = Color.Tomato;
-                            }
-                            else if (_cpuActive)
-                            {
-                                lblStatus.Text = $"Status: RECORDING (CPU: {_targetProcess?.ProcessName}, FPS: {_fpsLogger.ProcessName}[{_fpsLogger.ResolvedTargetPid}]) | {diag}";
-                                lblStatus.ForeColor = Color.LightGreen;
-                            }
-                            else
-                            {
-                                lblStatus.Text = $"Status: RECORDING FPS ({_fpsLogger.ProcessName}[{_fpsLogger.ResolvedTargetPid}]) | {diag}";
-                                lblStatus.ForeColor = Color.LightGreen;
-                            }
+                            lblStatus.Text = $"Status: {err.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()}";
+                            lblStatus.ForeColor = Color.Tomato;
                         }
                     }));
                 };
@@ -254,9 +242,9 @@ namespace PerfAudit
 
             string statusMessage;
             if (_cpuActive && _fpsActive)
-                statusMessage = $"RECORDING (CPU: {_targetProcess.ProcessName}, FPS: {_fpsLogger.ProcessName})";
+                statusMessage = $"RECORDING (CPU: {_cachedCpuProcessName}, FPS: {_fpsLogger.ProcessName})";
             else if (_cpuActive)
-                statusMessage = $"RECORDING CPU ({_targetProcess.ProcessName} @ {_currentThreshold}%)";
+                statusMessage = $"RECORDING CPU ({_cachedCpuProcessName} @ {_currentThreshold}%)";
             else
                 statusMessage = $"RECORDING FPS ({_fpsLogger.ProcessName})";
 
@@ -338,7 +326,7 @@ namespace PerfAudit
                         CpuUsage = cpuUsage,
                         IsBurst = !string.IsNullOrEmpty(burstFlag)
                     });
-                    _tempCpuWriter?.WriteLine($"' {timestamp},{_targetProcess.ProcessName},{Math.Round(cpuUsage, 2)},{burstFlag},");
+                    _tempCpuWriter?.WriteLine($"' {timestamp},{_cachedCpuProcessName},{Math.Round(cpuUsage, 2)},{burstFlag},");
                 }
 
                 this.BeginInvoke((Action)(() =>
@@ -347,8 +335,7 @@ namespace PerfAudit
                     lblLiveUsage.ForeColor = (cpuUsage > _currentThreshold) ? Color.Tomato : Color.LightGreen;
                     if (!string.IsNullOrEmpty(burstFlag))
                     {
-                        string diag = (_fpsActive && _fpsLogger != null) ? $" | {_fpsLogger.GetDiagnosticSummary()}" : "";
-                        lblStatus.Text = $"Status: BURST ALERT!{diag}";
+                        lblStatus.Text = "Status: BURST ALERT!";
                     }
                 }));
             }
@@ -403,7 +390,7 @@ namespace PerfAudit
             double threshold = _currentThreshold;
             int totalBursts = _totalBurstCount;
             double avgCpu = _sampleCount > 0 ? _totalCpuSum / _sampleCount : 0;
-            string cpuProcessName = _targetProcess?.ProcessName;
+            string cpuProcessName = _cachedCpuProcessName;
             string gameName = _fpsLogger?.ProcessName;
             int totalFrames = _fpsLogger?.TotalFramesRecorded ?? 0;
             bool cpuLogged = _cpuLogged;
@@ -523,9 +510,55 @@ namespace PerfAudit
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            try { _precisionTimer?.Stop(); } catch { }
-            try { _fpsLogger?.Stop(); } catch { }
-            try { _fpsLogger?.Dispose(); } catch { }
+            if (_cpuActive || _fpsActive)
+            {
+                var result = MessageBox.Show(
+                    "A monitoring session is running. Closing now will discard its data. Close anyway?",
+                    "PerfAudit",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (result == DialogResult.No)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+
+                _cpuActive = false;
+                _fpsActive = false;
+
+                try { _precisionTimer?.Stop(); } catch { }
+                try { _fpsLogger?.Stop(); } catch { }
+                try { _fpsLogger?.Dispose(); } catch { }
+                _fpsLogger = null;
+
+                lock (_cpuLock)
+                {
+                    try
+                    {
+                        _tempCpuWriter?.Flush();
+                        _tempCpuWriter?.Close();
+                        _tempCpuWriter?.Dispose();
+                        _tempCpuWriter = null;
+                    }
+                    catch { }
+                }
+
+                try
+                {
+                    if (!string.IsNullOrEmpty(_tempCpuFile) && File.Exists(_tempCpuFile))
+                    {
+                        File.Delete(_tempCpuFile);
+                    }
+                }
+                catch { }
+            }
+            else
+            {
+                try { _precisionTimer?.Stop(); } catch { }
+                try { _fpsLogger?.Stop(); } catch { }
+                try { _fpsLogger?.Dispose(); } catch { }
+            }
             FpsLogger.CleanupLeftoverSession();
         }
     }

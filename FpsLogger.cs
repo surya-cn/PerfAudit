@@ -43,22 +43,19 @@ namespace PerfAudit
         private System.Timers.Timer _heartbeatTimer;
         private int _latestFps;
         private long _lastFrameTicks;
+        private int _stopped = 0;
 
         public bool IsRunning { get; private set; }
         public List<FpsFrame> Frames => _frames;
         public string ProcessName => _processName;
         public int TotalFramesRecorded { get; private set; }
 
-        public long TotalEventsReceived;
-        public long DxgiEventsReceived;
-        public long TargetPidEventsReceived;
         public long EnqueuedPresentsCount;
         public string EtwThreadException { get; private set; }
         public int ResolvedTargetPid => _targetPid;
-        public string ResolvedProcessName => _processName;
 
         public event Action<int> FpsUpdated;
-        public event Action<string> DiagnosticsUpdated;
+        public event Action<string> ErrorOccurred;
         public event Action ProcessExited;
 
         public static void CleanupLeftoverSession()
@@ -106,11 +103,9 @@ namespace PerfAudit
                 _sampleQueue = new BlockingCollection<FrameSample>(20000);
                 _cts = new CancellationTokenSource();
                 TotalFramesRecorded = 0;
-                TotalEventsReceived = 0;
-                DxgiEventsReceived = 0;
-                TargetPidEventsReceived = 0;
                 EnqueuedPresentsCount = 0;
                 EtwThreadException = null;
+                _stopped = 0;
 
                 _session = new TraceEventSession(SessionName);
                 _session.StopOnDispose = true;
@@ -127,11 +122,13 @@ namespace PerfAudit
                         if (IsRunning && EtwThreadException == null)
                         {
                             EtwThreadException = "ETW pump exited unexpectedly (Process() returned).";
+                            ErrorOccurred?.Invoke(EtwThreadException);
                         }
                     }
                     catch (Exception ex)
                     {
                         EtwThreadException = ex.ToString();
+                        ErrorOccurred?.Invoke(EtwThreadException);
                     }
                 }, TaskCreationOptions.LongRunning);
 
@@ -160,7 +157,6 @@ namespace PerfAudit
                         }
 
                         FpsUpdated?.Invoke(_latestFps);
-                        DiagnosticsUpdated?.Invoke(GetDiagnosticSummary());
                     }
                     catch { }
                 };
@@ -179,29 +175,25 @@ namespace PerfAudit
 
         private void OnTraceEvent(TraceEvent data)
         {
-            Interlocked.Increment(ref TotalEventsReceived);
-
-            if (data.ProviderGuid == DxgiGuid)
-            {
-                Interlocked.Increment(ref DxgiEventsReceived);
-            }
-
             if (data.ProcessID == _targetPid)
             {
-                Interlocked.Increment(ref TargetPidEventsReceived);
-
                 int eventId = (int)data.ID;
 
                 if (data.ProviderGuid == DxgiGuid && (eventId == 42 || eventId == 55))
                 {
-                    Interlocked.Increment(ref EnqueuedPresentsCount);
-#pragma warning disable 618
-                    _sampleQueue.TryAdd(new FrameSample
+                    if (_sampleQueue != null && !_sampleQueue.IsAddingCompleted)
                     {
-                        TimestampQpc = data.TimeStampQPC,
-                        WallClock = data.TimeStamp
-                    });
+#pragma warning disable 618
+                        if (_sampleQueue.TryAdd(new FrameSample
+                        {
+                            TimestampQpc = data.TimeStampQPC,
+                            WallClock = data.TimeStamp
+                        }))
+                        {
+                            Interlocked.Increment(ref EnqueuedPresentsCount);
+                        }
 #pragma warning restore 618
+                    }
                 }
             }
         }
@@ -244,20 +236,9 @@ namespace PerfAudit
             catch { }
         }
 
-        public string GetDiagnosticSummary()
-        {
-            if (!string.IsNullOrEmpty(EtwThreadException))
-            {
-                string firstLine = EtwThreadException.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-                return $"ETW Error: {firstLine}";
-            }
-
-            return $"Evts:{TotalEventsReceived} | DXGI:{DxgiEventsReceived} | PID({_targetPid}):{TargetPidEventsReceived} | Enq:{EnqueuedPresentsCount}";
-        }
-
         public void Stop()
         {
-            if (!IsRunning) return;
+            if (Interlocked.Exchange(ref _stopped, 1) != 0) return;
             IsRunning = false;
 
             try { _heartbeatTimer?.Stop(); } catch { }
@@ -277,19 +258,19 @@ namespace PerfAudit
 
             try
             {
+                _processingTask?.Wait(3000);
+            }
+            catch { }
+
+            try
+            {
                 _sampleQueue?.CompleteAdding();
             }
             catch { }
 
             try
             {
-                _writerTask?.Wait(2000);
-            }
-            catch { }
-
-            try
-            {
-                _processingTask?.Wait(1000);
+                _writerTask?.Wait(5000);
             }
             catch { }
 

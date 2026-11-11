@@ -73,7 +73,6 @@ namespace PerfAudit
         {
             var ws = package.Workbook.Worksheets.Add("CPU_Usage");
 
-            // Header row replicating CSV layout
             ws.Cells[1, 1].Value = "Timestamp";
             ws.Cells[1, 2].Value = "Process";
             ws.Cells[1, 3].Value = "CPU_Usage_Percent";
@@ -105,8 +104,8 @@ namespace PerfAudit
                 }
             }
 
-            // Bottom summary rows
-            row++; // Blank row
+            row++;
+
             ws.Cells[row, 4].Value = "TOTAL BURST SAMPLES:";
             ws.Cells[row, 5].Value = totalBurstCount;
             ws.Row(row).Style.Font.Bold = true;
@@ -130,7 +129,6 @@ namespace PerfAudit
         {
             var wsGraph = package.Workbook.Worksheets.Add("CPU_Graph");
 
-            // Row 1: Process title
             wsGraph.Cells[1, 1].Value = $"Process: {cpuProcessName}";
             wsGraph.Cells[1, 1].Style.Font.Bold = true;
             wsGraph.Cells[1, 1].Style.Font.Size = 13;
@@ -141,7 +139,6 @@ namespace PerfAudit
 
             double peakCpu = sampleCount > 0 ? cpuSamples.Max(s => s.CpuUsage) : 0.0;
 
-            // Group by second
             var perSecondMap = new Dictionary<int, List<CpuSample>>();
             if (cpuSamples != null)
             {
@@ -184,7 +181,6 @@ namespace PerfAudit
             Color headerFill = Color.FromArgb(225, 230, 238);
             Color borderColor = Color.FromArgb(210, 215, 222);
 
-            // 2. SUMMARY BLOCK (rows 3-10, labels in column A, values in column B)
             wsGraph.Cells[3, 1].Value = "Summary Metric";
             wsGraph.Cells[3, 2].Value = "Value";
             wsGraph.Row(3).Style.Font.Bold = true;
@@ -229,7 +225,6 @@ namespace PerfAudit
             wsGraph.Cells[3, 1, summaryEndRow, 2].Style.Border.Left.Color.SetColor(borderColor);
             wsGraph.Cells[3, 1, summaryEndRow, 2].Style.Border.Right.Color.SetColor(borderColor);
 
-            // 3. PER-SECOND TABLE (start at row 15, columns A-D)
             wsGraph.Cells[15, 1].Value = "time_s";
             wsGraph.Cells[15, 2].Value = "peak_cpu_pct";
             wsGraph.Cells[15, 3].Value = "threshold_pct";
@@ -260,30 +255,29 @@ namespace PerfAudit
             int tableEndRow = tableRow - 1;
             wsGraph.Cells[1, 1, Math.Max(tableEndRow, 16), 4].AutoFitColumns();
 
-            // 4. CHART "<process> - CPU % vs time" (placed at Col F, 900x350 px)
             if (completeSeconds.Count > 1)
             {
                 var chart = wsGraph.Drawings.AddChart("CpuChart", eChartType.Line) as ExcelLineChart;
                 chart.Title.Text = $"{cpuProcessName} - CPU % vs time";
-                chart.SetPosition(1, 0, 5, 0); // Row 2, Col F
+                chart.SetPosition(1, 0, 5, 0);
+
                 chart.SetSize(900, 350);
 
-                // Series 1: peak_cpu_pct, thin line (about 1.5 pt), no markers, strong blue.
                 var ser1 = chart.Series.Add(wsGraph.Cells[16, 2, tableEndRow, 2], wsGraph.Cells[16, 1, tableEndRow, 1]) as ExcelLineChartSerie;
                 ser1.Header = "Peak CPU % (per second)";
                 ser1.LineWidth = 1.5;
-                ser1.LineColor = Color.FromArgb(0, 114, 206); // strong blue
+                ser1.LineColor = Color.FromArgb(0, 114, 206);
+
                 ser1.Marker = eMarkerStyle.None;
 
-                // Series 2: threshold_pct, thin dashed grey line, no markers.
                 var ser2 = chart.Series.Add(wsGraph.Cells[16, 3, tableEndRow, 3], wsGraph.Cells[16, 1, tableEndRow, 1]) as ExcelLineChartSerie;
                 ser2.Header = "Threshold";
                 ser2.LineWidth = 1.0;
-                ser2.LineColor = Color.FromArgb(140, 140, 140); // grey
+                ser2.LineColor = Color.FromArgb(140, 140, 140);
+
                 ser2.Border.LineStyle = eLineStyle.Dash;
                 ser2.Marker = eMarkerStyle.None;
 
-                // Series 3: burst_peak_pct, NO connecting line, red circle markers (size about 6) only. Empty cells must show as gaps, not as zero.
                 var ser3 = chart.Series.Add(wsGraph.Cells[16, 4, tableEndRow, 4], wsGraph.Cells[16, 1, tableEndRow, 1]) as ExcelLineChartSerie;
                 ser3.Header = "Burst";
                 ser3.Marker = eMarkerStyle.Circle;
@@ -299,7 +293,8 @@ namespace PerfAudit
                 chart.YAxis.MaxValue = maxVal;
 
                 chart.YAxis.MajorGridlines.Fill.Style = eFillStyle.SolidFill;
-                chart.YAxis.MajorGridlines.Fill.Color = Color.FromArgb(220, 220, 220); // #DCDCDC
+                chart.YAxis.MajorGridlines.Fill.Color = Color.FromArgb(220, 220, 220);
+
 
                 chart.XAxis.Border.Fill.Style = eFillStyle.SolidFill;
                 chart.XAxis.Border.Fill.Color = Color.FromArgb(215, 215, 215);
